@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Anticipatory Caching</title>
+<link rel="stylesheet" href="./suggest.css" type="text/css" />
+<script type="text/javascript" src="./jquery.js"></script>
+<script type="text/javascript" src="http://mjtemplate.org/dist/mjt-0.6/mjt.js"></script>
+<script type="text/javascript" src="http://mjtemplate.org/dist/mjt-0.6/mjtsuggest.js"></script>
+<script type="text/javascript">//<![CDATA[
+
+var input_id = 'typename_input';
+var suggest_ctl;
+var template_defs;
+
+function init() {
+    template_defs = mjt.run();
+
+    show_form('/type/type');
+};
+
+function show_form(typeid) {
+    function finish_autosuggest(sugg) {
+        var input = document.getElementById(input_id);
+    
+        if (!input) {
+            mjt.warn("finish_autosuggest: <input> is gone, cant find value");
+            return false;
+        }
+        
+        if (typeof sugg !== 'object' || sugg === null) {
+            mjt.log('autosuggest aborted');
+        } else {
+            mjt.log('autosuggest complete: ', sugg.value, sugg.info, sugg);
+            if (typeid === '/type/type')
+                show_form(sugg.info);
+        }
+    };
+
+    mjt.run('form_placement', template_defs.show_choose_form, [typeid]);
+
+    // set up autocomplete once the template is expanded
+    var ctl = new mjt.Suggester();
+    ctl.menu_tfunc = template_defs.type_menu;
+    ctl.menu_context = { typeid: typeid };
+    ctl.addhook('onfinish', finish_autosuggest);
+    ctl.addhook('onabort',  finish_autosuggest);
+   
+    ctl.attach(input_id);
+
+    suggest_ctl = ctl;
+
+};
+
+//]]></script>
+</head>
+<body onload="init()" style="display:none">
+<div>
+    Prefetch #Anticipatory Retrieval and Caching#
+  </div>
+<div>
+This is test application to Auto-find a related data in freebase
+</div>
+<div mjt.def="show_choose_form(typeid)">
+<a href="#" mjt.onclick="show_form('/type/type'); return false;">reset</a>
+<form method="get" action="#" mjt.onsubmit="return false;">
+<div>
+        choose an instance of $typeid:
+        <input type="text" size="40" id="typename_input" name="typename" value="" />
+</div>
+</form>
+</div>
+<div id="form_placement">
+</div>
+<div mjt.def="type_menu(ctl, prefix, appdata)" class="suggestmenu">
+<pre mjt.script="">
+      var menui = 0;
+    </pre>
+<pre mjt.task="q">
+      mjt.freebase.MqlRead([{
+        id: null,
+        name: null,
+        'name~=': '^' + prefix + '*',
+        type: appdata.typeid || '/type/type',
+        sort: 'name',
+        limit: 10
+      }])
+    </pre>
+<div mjt.choose="q.state" mjt.strip="1">
+<div mjt.when="ready" class="suggestlist">
+<div mjt.for="o in q.result">
+<a class="suggestion" href="#" mjt.onclick="return ctl.click_suggestion(this, event)" mjt.onmouseover="return ctl.suggestion_mouseover(this, event)" mjt.onmouseout="return ctl.suggestion_mouseout(this, event)">
+<span>
+<span mjt.script="">
+                var subs = mjt.Suggester.splitmatch(o.name, prefix);
+              </span>
+<span class="suggestion_index">${menui+1}</span>
+<!-- the suggested string, with matching section highlighted -->
+<span class="suggestion_value">${subs[0]}<em>${subs[1]}</em>${subs[2]}</span>
+<span class="suggestion_info">$o.id</span>
+</span>
+</a>
+<pre mjt.script="">menui++;</pre>
+</div>
+<div mjt.if="q.result.length == 0" class="as_warning">
+          no results
+        </div>
+</div>
+<div mjt.when="wait" class="suggestlist">
+        loading...
+      </div>
+<div mjt.when="error" class="suggestlist">
+        ERROR: ${q.messages[0].message}
+      </div>
+</div>
+</div>
+</body>
+</html>
